@@ -1223,3 +1223,122 @@ export function processData(
     },
   };
 }
+
+// ─── Alerts ─────────────────────────────────────────────────────────────────
+
+export type AlertItem = {
+  type: "danger" | "warning";
+  title: string;
+  desc: string;
+  action: string;
+  scrollTo: string;
+  highlight: string | null;
+  impact: number;
+};
+
+export function computeAlerts(
+  m: DashMetrics,
+  svcList: ServiceStat[],
+  riskList: AtRiskClient[],
+  currencySymbol = "€",
+): AlertItem[] {
+  const curr = currencySymbol;
+  const list: AlertItem[] = [];
+
+  // Alerta: clientes en riesgo de abandono
+  if (riskList.length > 0) {
+    const riskImpact = riskList.filter((c) => c.risk === "alto").length * m.precioMedio * 2;
+    list.push({
+      type: "danger",
+      title: `${riskList.length} clientes sin visita en 45+ días`,
+      desc: "Riesgo de abandono. Recomienda una acción de reactivación esta semana.",
+      action: "Ver clientes",
+      scrollTo: "seccion-clientes-riesgo",
+      highlight: "clients",
+      impact: riskImpact,
+    });
+  }
+
+  // Alerta: servicio con €/hora por debajo del 60% de la media
+  const withEuroHour = svcList.map((s) => ({
+    ...s,
+    euroHour: Math.round((s.avg / (s.duration || 60)) * 60),
+  }));
+  if (withEuroHour.length > 0) {
+    const avgEuroHour = withEuroHour.reduce((sum, s) => sum + s.euroHour, 0) / withEuroHour.length;
+    const worstService = withEuroHour
+      .filter((s) => s.euroHour < avgEuroHour * 0.6)
+      .sort((a, b) => a.euroHour - b.euroHour)[0];
+    if (worstService) {
+      const newPrice = Math.round((Math.round(avgEuroHour) * worstService.duration) / 60);
+      const impactoMargen = (newPrice - worstService.avg) * worstService.sessions;
+      list.push({
+        type: "warning",
+        title: `Estás perdiendo rentabilidad en ${worstService.name}`,
+        desc: `Su ${curr}/hora es ${worstService.euroHour}${curr}/h (media: ${Math.round(avgEuroHour)}${curr}/h). Subiendo el precio podrías ganar +${impactoMargen}${curr}/mes.`,
+        action: "Analizar",
+        scrollTo: "seccion-rentabilidad",
+        highlight: worstService.name,
+        impact: impactoMargen,
+      });
+    }
+  }
+
+  // Alerta: huecos en horas clave
+  if (m.ocupacionFranja < 70) {
+    const horasVaciasMes = Math.round(((70 - m.ocupacionFranja) / 100) * 22 * 2);
+    const impactoHuecos = horasVaciasMes * m.precioMedio;
+    list.push({
+      type: "warning",
+      title: "Tienes horas vacías en franjas clave (17h–19h)",
+      desc: `Ocupación de la franja 17h–19h al ${m.ocupacionFranja}%. Estás dejando de ganar ~${impactoHuecos}${curr}/mes en esas franjas.`,
+      action: "Ver estrategias",
+      scrollTo: "seccion-ingresos",
+      highlight: "horas-vacias",
+      impact: impactoHuecos,
+    });
+  }
+
+  // Alerta: baja retención
+  if (m.retencion < 45) {
+    const impactoRetencion = Math.round(((45 - m.retencion) / 100) * m.facturacion);
+    list.push({
+      type: "warning",
+      title: `Solo el ${m.retencion}% de tus clientes vuelve`,
+      desc: `Estás perdiendo ~${impactoRetencion}${curr}/mes en ingresos recurrentes por baja fidelización.`,
+      action: "Ver desglose",
+      scrollTo: "seccion-clientes-riesgo",
+      highlight: null,
+      impact: impactoRetencion,
+    });
+  }
+
+  // Alerta: citas canceladas sin reagendar
+  if (m.cancelacionesSemana > 0) {
+    const impactoCancelaciones = m.cancelacionesSemana * m.precioMedio;
+    list.push({
+      type: "warning",
+      title: `${m.cancelacionesSemana} citas canceladas sin reagendar esta semana`,
+      desc: `~${impactoCancelaciones}${curr} en ingresos potenciales perdidos. Contacta a esas clientes hoy.`,
+      action: "Ver desglose",
+      scrollTo: "seccion-clientes-riesgo",
+      highlight: null,
+      impact: impactoCancelaciones,
+    });
+  }
+
+  // Alerta: alto porcentaje de citas sin ficha de cliente (walk-ins)
+  if ((m.walkInPercent ?? 0) >= 5) {
+    list.push({
+      type: "warning",
+      title: `${m.walkInPercent}% de tus citas son de clientes sin ficha`,
+      desc: "Pedir nombre y teléfono al registrar la cita mejora el análisis de fidelización",
+      action: "",
+      scrollTo: "",
+      highlight: null,
+      impact: 0,
+    });
+  }
+
+  return list.sort((a, b) => b.impact - a.impact).slice(0, 5);
+}

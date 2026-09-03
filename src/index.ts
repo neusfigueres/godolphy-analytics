@@ -2,6 +2,7 @@ export {
   getCurrencySymbol,
   normalizeRows,
   processData,
+  computeAlerts,
 } from "./engine";
 
 export type {
@@ -15,4 +16,5 @@ export type {
   ProfessionalStat,
   OpportunityItem,
   DashData,
+  AlertItem,
 } from "./engine";
