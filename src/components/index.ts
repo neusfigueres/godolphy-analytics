@@ -3,3 +3,8 @@ export { default as AtRiskClients } from "./AtRiskClients";
 export { default as ProfessionalTable } from "./ProfessionalTable";
 export { default as ServiceTable } from "./ServiceTable";
 export { default as AlertsPanel } from "./AlertsPanel";
+export { default as KpiCard } from "./KpiCard";
+export { default as RevenueModule } from "./RevenueModule";
+export { default as NewClientsModule } from "./NewClientsModule";
+export { default as InsightBanner } from "./InsightBanner";
+export { default as Opportunities } from "./Opportunities";

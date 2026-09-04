@@ -18,4 +18,9 @@ export {
   ProfessionalTable,
   ServiceTable,
   AlertsPanel,
+  KpiCard,
+  RevenueModule,
+  NewClientsModule,
+  InsightBanner,
+  Opportunities,
 } from "./components/index";
