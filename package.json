@@ -1,6 +1,6 @@
 {
   "name": "@neusfigueres/godolphy-analytics",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -11,6 +11,12 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./components": {
+      "types": "./dist/components.d.ts",
+      "import": "./dist/components.js",
+      "require": "./dist/components.js",
+      "default": "./dist/components.js"
     }
   },
   "files": ["dist"],
@@ -19,7 +25,20 @@
     "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18",
+    "lucide-react": ">=0.456.0"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "lucide-react": { "optional": true }
+  },
   "devDependencies": {
+    "@types/react": "^18.0.0",
+    "lucide-react": "^1.8.0",
+    "react": "^18.3.0",
     "typescript": "^5.0.0"
   }
 }
