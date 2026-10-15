@@ -53,7 +53,10 @@ export type DashMetrics = {
   ocupacionFranja: number;
   retencion: number;
   cancelacionesSemana: number;
+  /** Ticket medio: € per visit */
   precioMedio: number;
+  /** € per hour (for impacts measured in hours) */
+  euroHora?: number;
   facturacion: number;
   walkInPercent: number; // % of non-cancelled current-month appointments that are walk-ins
 };
@@ -102,6 +105,8 @@ export type DashData = {
     facturacionAnterior: number | null;
     changePercent: number | null;
     precioMedioHora: number | null;
+    /** € per visit in the current month */
+    ticketMedio: number;
     ocupacion: number;
     totalRegistros: number;
     clientesUnicos: number;
@@ -289,18 +294,35 @@ export type NRow = {
   startMin: number | null;
 };
 
+// ─── Client identity ─────────────────────────────────────────────────────────
+// Two clients with the same name are different people if their phone or email
+// differ: the key uses the phone (digits) or email when the export has them, and
+// falls back to the name only when it has neither.
+export function clientKey(c: NRow["cliente"]): string {
+  const phone = (c.phone ?? "").replace(/\D/g, "");
+  if (phone.length >= 6) return `t:${phone}`;
+  const email = (c.email ?? "").trim().toLowerCase();
+  if (email) return `e:${email}`;
+  return `n:${c.name.trim().toLowerCase()}`;
+}
+
 // ─── Opportunity engine ──────────────────────────────────────────────────────
 
 function computeOpportunities(
   normalized: NRow[],
   fieldMap: Record<string, string>,
-  precioMedio: number,
+  ticketMedio: number,
+  euroHora: number,
   now: Date,
   currencySymbol: string,
 ): OpportunityItem[] {
   const curr = currencySymbol;
   const ops: OpportunityItem[] = [];
   const nc = normalized.filter((r) => !r.cancelada);
+  // Value of one visit (sessions × ticket) vs one hour (hours × €/hour)
+  const precioMedio = ticketMedio;
+  // Months covered by the data, to turn whole-history counts into "per month"
+  const monthsInData = Math.max(1, new Set(nc.map((r) => `${r.fecha.getFullYear()}-${r.fecha.getMonth()}`)).size);
 
   const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
   const ninetyDaysAgo  = new Date(now.getTime() - 90  * 86400000);
@@ -314,7 +336,7 @@ function computeOpportunities(
   };
   const cm = new Map<string, CR>();
   for (const r of nc) {
-    const k = r.cliente.name.toLowerCase();
+    const k = clientKey(r.cliente);
     const e = cm.get(k);
     const inLast3m = r.fecha >= threeMonthsAgo;
     cm.set(k, {
@@ -348,7 +370,7 @@ function computeOpportunities(
   // ── OP-02: Reactivación ex-clientes ──────────────────────────────────────
   const inactive90 = clients.filter((c) => c.lastDate < ninetyDaysAgo && c.visits >= 2);
   if (inactive90.length > 0) {
-    const impact = Math.round(inactive90.length * precioMedio * 0.6);
+    const impact = Math.round(inactive90.length * precioMedio * 0.3);
     ops.push({
       id: "OP-02", title: "Reactivación de ex-clientes",
       desc: `${inactive90.length} clientes no vuelven desde hace más de 3 meses`,
@@ -391,10 +413,10 @@ function computeOpportunities(
       const impact = Math.round(n * precioMedio);
       ops.push({
         id: "OP-04", title: "Clientes sin próxima cita",
-        desc: `${n} clientes terminaron su servicio y no han reservado`,
+        desc: `${n} clientes vinieron hace 3–6 semanas y están en el momento de volver`,
         potential: `${curr}${impact.toLocaleString("es-ES")} potencial`,
         impact, color: "#0EA5E9", bg: "#F0F9FF",
-        whyText: `${n} clientes vinieron hace entre 3 y 6 semanas pero no tienen nueva reserva. Es la ventana natural de necesitar el servicio de nuevo — el momento ideal para un recordatorio.`,
+        whyText: `${n} clientes vinieron hace entre 3 y 6 semanas. Es la ventana natural de necesitar el servicio de nuevo — el momento ideal para un recordatorio a las que todavía no hayan reservado.`,
         actionText: "Envía un recordatorio a estos clientes para que reserven su próxima cita. Un mensaje tipo '¿Cuándo vienes a renovar?' con un enlace de reserva convierte muy bien en esta ventana.",
         actionButton: "Enviar recordatorio",
       });
@@ -405,14 +427,15 @@ function computeOpportunities(
   if (fieldMap["servicio"]) {
     const handFoot = nc.filter((r) => /manicura|pedicura|gel|nail|mano|pie|uñ/i.test(r.servicio));
     if (handFoot.length > 0) {
-      const impact = Math.round(handFoot.length * 7 * 0.3);
+      const perMonth = Math.round(handFoot.length / monthsInData);
+      const impact = Math.round(perMonth * 7 * 0.3);
       ops.push({
-        id: "OP-05", title: "Extras de masaje no ofrecidos",
-        desc: "Ninguna cliente tiene extras de masaje en sus citas",
+        id: "OP-05", title: "Ofrecer extras de masaje",
+        desc: `Tus ${perMonth} sesiones de manos/pies al mes son una oportunidad para ofrecer un extra de masaje`,
         potential: `+${curr}${impact.toLocaleString("es-ES")}/mes estimado`,
         impact, color: "#10B981", bg: "#ECFDF5",
-        whyText: `Tienes ${handFoot.length} sesiones de manos/pies al mes sin ningún extra de masaje registrado. Con un 30% de adopción y 7${curr} de precio medio, podrías generar +${curr}${impact.toLocaleString("es-ES")}/mes sin captar nuevos clientes.`,
-        actionText: "Añade masaje de manos o pies como extra en tus servicios. 10–15 minutos a 5–10${curr}. Es el extra más fácil de ofrecer porque el cliente ya está en el sillón — y pocas lo rechazan.",
+        whyText: `Tienes unas ${perMonth} sesiones de manos/pies al mes. Si un 30% añadiera un extra de masaje de ${curr}7, podrías generar +${curr}${impact.toLocaleString("es-ES")}/mes sin captar nuevos clientes.`,
+        actionText: `Añade masaje de manos o pies como extra en tus servicios. 10–15 minutos a ${curr}5–10. Es el extra más fácil de ofrecer porque el cliente ya está en el sillón — y pocas lo rechazan.`,
         actionButton: "Añadir extra",
       });
     }
@@ -425,11 +448,11 @@ function computeOpportunities(
       const impact = Math.round(n * 5 * 0.3 * 4);
       ops.push({
         id: "OP-06", title: "Extras dentro del servicio",
-        desc: `${n} clientes nunca han añadido ningún extra a sus servicios`,
+        desc: `${n} clientes recurrentes a las que proponer un extra en su próxima cita`,
         potential: `+${curr}${impact.toLocaleString("es-ES")}/mes estimado`,
         impact, color: "#10B981", bg: "#ECFDF5",
-        whyText: `${n} clientes recurrentes no tienen ningún extra registrado en sus citas. Los extras son ingresos de muy bajo esfuerzo: solo hay que proponerlos en el momento adecuado.`,
-        actionText: "Introduce '¿Le añadimos algo más hoy?' como parte del proceso estándar de cada cita. Un extra de 5–10${curr} por cliente frecuente puede aumentar tu facturación mensual notablemente.",
+        whyText: `Tienes ${n} clientes que repiten. Los extras son ingresos de muy bajo esfuerzo: solo hay que proponerlos en el momento adecuado.`,
+        actionText: `Introduce '¿Le añadimos algo más hoy?' como parte del proceso estándar de cada cita. Un extra de ${curr}5–10 por cliente frecuente puede aumentar tu facturación mensual notablemente.`,
         actionButton: "Activar extras",
       });
     }
@@ -487,7 +510,7 @@ function computeOpportunities(
       const prime = nc.filter((r) => { const h = r.fecha.getHours(); return h >= 17 && h < 19; });
       const primeOcc = nc.length > 0 ? (prime.length / nc.length) * 100 : 100;
       if (primeOcc < 30) {
-        const potential = Math.round(((30 - primeOcc) / 100) * nc.length * precioMedio);
+        const potential = Math.round(((30 - primeOcc) / 100) * (nc.length / monthsInData) * precioMedio);
         ops.push({
           id: "OP-09", title: "Franjas vacías en horario prime",
           desc: "Tu franja 17h–19h está casi vacía cada semana",
@@ -555,7 +578,7 @@ function computeOpportunities(
         const avgGap = totalGap / gapDays;
         if (avgGap > 30) {
           const monthlyH = (avgGap * 22) / 60;
-          const impact = Math.round(monthlyH * precioMedio);
+          const impact = Math.round(monthlyH * euroHora);
           ops.push({
             id: "OP-11", title: "Tiempo muerto entre citas",
             desc: `Tienes un promedio de ${Math.round(avgGap)} min muertos entre citas cada día`,
@@ -584,8 +607,9 @@ function computeOpportunities(
       if (!m.length) continue;
       const avg = m.reduce((s, r) => s + r.precio, 0) / m.length;
       if (avg < bench) {
-        const impact = Math.round((bench - avg) * m.length);
-        if (!best12 || impact > best12.impact) best12 = { name: label, avg: Math.round(avg), bench, sessions: m.length, impact };
+        const sessionsPerMonth = Math.max(1, Math.round(m.length / monthsInData));
+        const impact = Math.round((bench - avg) * sessionsPerMonth);
+        if (!best12 || impact > best12.impact) best12 = { name: label, avg: Math.round(avg), bench, sessions: sessionsPerMonth, impact };
       }
     }
     if (best12) {
@@ -661,7 +685,7 @@ function computeOpportunities(
           worst15 = { name, sessions };
       }
       if (worst15) {
-        const unused  = Math.round(avg15 - worst15.sessions);
+        const unused  = Math.round((avg15 - worst15.sessions) / monthsInData);
         const impact  = Math.round(unused * precioMedio);
         const pct15   = Math.round(100 - (worst15.sessions / avg15) * 100);
         ops.push({
@@ -901,16 +925,18 @@ export function processData(
     ? Math.round(withDur.reduce((s, r) => s + (r.precio / r.duracion) * 60, 0) / withDur.length)
     : null;
 
-  // Clients unique — walk-ins excluded
+  // Clients unique — walk-ins excluded (same name ≠ same client if phone/email differ)
   const curClients = new Set(
-    cur.filter((r) => !r.isWalkIn).map((r) => r.cliente.name.toLowerCase()).filter(Boolean)
+    cur.filter((r) => !r.isWalkIn && r.cliente.name).map((r) => clientKey(r.cliente))
   );
   const prevAllClients = new Set(
     normalized
-      .filter((r) => r.fecha < new Date(curYear, curMonth, 1) && !r.isWalkIn)
-      .map((r) => r.cliente.name.toLowerCase())
-      .filter(Boolean)
+      .filter((r) => r.fecha < new Date(curYear, curMonth, 1) && !r.isWalkIn && r.cliente.name)
+      .map((r) => clientKey(r.cliente))
   );
+  // Display name per client key
+  const nameByKey = new Map<string, string>();
+  for (const r of normalized) if (r.cliente.name) nameByKey.set(clientKey(r.cliente), r.cliente.name.trim().toLowerCase());
   const recurrentes = [...curClients].filter((c) => prevAllClients.has(c)).length;
   const retencion = curClients.size > 0
     ? Math.round((recurrentes / curClients.size) * 100)
@@ -1014,7 +1040,7 @@ export function processData(
   // ── Discount frequency per client — walk-ins excluded ────────────────────
   const clientDiscountMap = new Map<string, { total: number; withDiscount: number }>();
   for (const r of normalized.filter((r) => !r.cancelada && !r.isWalkIn && r.cliente.name)) {
-    const key = r.cliente.name.toLowerCase();
+    const key = clientKey(r.cliente);
     const e   = clientDiscountMap.get(key) ?? { total: 0, withDiscount: 0 };
     e.total++;
     if (r.tieneDescuento) e.withDiscount++;
@@ -1028,8 +1054,8 @@ export function processData(
 
   // ── At-risk clients — walk-ins excluded ───────────────────────────────────
   const clientInfo = new Map<string, { lastDate: Date; lastService: string; ltv: number; email: string | null; phone: string | null }>();
-  for (const r of normalized.filter((r) => !r.cancelada && !r.isWalkIn)) {
-    const key  = r.cliente.name.toLowerCase();
+  for (const r of normalized.filter((r) => !r.cancelada && !r.isWalkIn && r.cliente.name)) {
+    const key  = clientKey(r.cliente);
     const e    = clientInfo.get(key);
     const ltv  = (e?.ltv  ?? 0) + r.precio;
     const email = r.cliente.email ?? e?.email ?? null;
@@ -1040,9 +1066,15 @@ export function processData(
       clientInfo.set(key, { ...e, ltv, email, phone });
     }
   }
-  const now = new Date();
+  // Reference date: the last day of the data, or today if the data reaches the future
+  // (panel with upcoming bookings). With an old export, "days without visiting" and
+  // "this week" are measured from the end of the export, not from today.
+  const realNow = new Date();
+  const lastDay = new Date(latest.getFullYear(), latest.getMonth(), latest.getDate(), 23, 59, 59);
+  const now = lastDay < realNow ? lastDay : realNow;
   const atRiskClients: AtRiskClient[] = [...clientInfo.entries()]
-    .map(([rawName, d]) => {
+    .map(([key, d]) => {
+      const rawName = nameByKey.get(key) ?? "";
       const name = rawName.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
       const days = Math.round((now.getTime() - d.lastDate.getTime()) / 86400000);
       return {
@@ -1054,7 +1086,7 @@ export function processData(
         risk: days >= 60 ? "alto" : "medio" as "alto" | "medio",
         lastService: d.lastService,
         avatar: initials(name),
-        descuentoFrecuente: discountFrecuenteSet.has(rawName),
+        descuentoFrecuente: discountFrecuenteSet.has(key),
       };
     })
     .filter((c) => c.days >= 45)
@@ -1117,7 +1149,7 @@ export function processData(
   // ── New clients per month — walk-ins excluded ─────────────────────────────
   const clientFirstMonth = new Map<string, string>();
   for (const r of normalized.filter((r) => !r.cancelada && !r.isWalkIn && r.cliente.name)) {
-    const key      = r.cliente.name.toLowerCase();
+    const key      = clientKey(r.cliente);
     const monthKey = `${r.fecha.getFullYear()}-${String(r.fecha.getMonth() + 1).padStart(2, "0")}`;
     const existing = clientFirstMonth.get(key);
     if (!existing || monthKey < existing) clientFirstMonth.set(key, monthKey);
@@ -1135,17 +1167,18 @@ export function processData(
   // ── Top clients — walk-ins excluded ──────────────────────────────────────
   const clientVisits = new Map<string, number>();
   for (const r of normalized.filter((r) => !r.cancelada && !r.isWalkIn && r.cliente.name)) {
-    const key = r.cliente.name.toLowerCase();
+    const key = clientKey(r.cliente);
     clientVisits.set(key, (clientVisits.get(key) ?? 0) + 1);
   }
   const topClients = [...clientInfo.entries()]
-    .map(([rawName, d]) => {
+    .map(([key, d]) => {
+      const rawName = nameByKey.get(key) ?? "";
       const name = rawName.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
       return {
         name,
         email: d.email,
         phone: d.phone,
-        visits: clientVisits.get(rawName) ?? 0,
+        visits: clientVisits.get(key) ?? 0,
         total: Math.round(d.ltv),
         lastService: d.lastService,
         avatar: initials(name),
@@ -1154,7 +1187,11 @@ export function processData(
     .sort((a, b) => b.total - a.total)
     .slice(0, 4);
 
-  const precioMedio = precioMedioHora ?? Math.round(facturacion / Math.max(cur.length, 1));
+  // Ticket medio = € per visit (what one more/one lost visit is worth). Before, this
+  // was €/hour, so "N clients × precioMedio" mixed units.
+  const ticketMedio = Math.round(facturacion / Math.max(cur.length, 1));
+  const precioMedio = ticketMedio;
+  const euroHora = precioMedioHora ?? avgEuroPerHour ?? ticketMedio;
 
   // ── Professional stats ────────────────────────────────────────────────────
   const profMap = new Map<string, { revenue: number; sessions: number; minutes: number; services: Map<string, number> }>();
@@ -1184,7 +1221,7 @@ export function processData(
     })
     .sort((a, b) => b.revenue - a.revenue);
 
-  const allOpportunities = computeOpportunities(normalized, fieldMap, precioMedio, now, currencySymbol ?? "€");
+  const allOpportunities = computeOpportunities(normalized, fieldMap, ticketMedio, euroHora, now, currencySymbol ?? "€");
 
   return {
     hasRealData: true,
@@ -1195,6 +1232,7 @@ export function processData(
       facturacionAnterior,
       changePercent,
       precioMedioHora,
+      ticketMedio,
       ocupacion,
       totalRegistros: cur.length,
       clientesUnicos: curClients.size,
@@ -1218,6 +1256,7 @@ export function processData(
       retencion,
       cancelacionesSemana,
       precioMedio,
+      euroHora,
       facturacion,
       walkInPercent,
     },
@@ -1287,7 +1326,7 @@ export function computeAlerts(
   // Alerta: huecos en horas clave
   if (m.ocupacionFranja < 70) {
     const horasVaciasMes = Math.round(((70 - m.ocupacionFranja) / 100) * 22 * 2);
-    const impactoHuecos = horasVaciasMes * m.precioMedio;
+    const impactoHuecos = Math.round(horasVaciasMes * (m.euroHora ?? m.precioMedio));
     list.push({
       type: "warning",
       title: "Tienes horas vacías en franjas clave (17h–19h)",

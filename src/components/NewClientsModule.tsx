@@ -19,7 +19,7 @@ function ClientChart({ data }: { data: MonthPoint[] }) {
 
   const pts = data.map((d, i) => ({
     x: lPad + (i / (data.length - 1)) * innerW,
-    y: tPad + (1 - (d.value - minVal) / (maxVal - minVal)) * innerH,
+    y: tPad + (1 - (d.value - minVal) / ((maxVal - minVal) || 1)) * innerH,
     ...d,
   }));
 
@@ -40,7 +40,7 @@ function ClientChart({ data }: { data: MonthPoint[] }) {
         </linearGradient>
       </defs>
       {[minVal, Math.round((minVal + maxVal) / 2), maxVal].map((v) => {
-        const y = tPad + (1 - (v - minVal) / (maxVal - minVal)) * innerH;
+        const y = tPad + (1 - (v - minVal) / ((maxVal - minVal) || 1)) * innerH;
         return (
           <g key={v}>
             <line x1={lPad} y1={y} x2={W - 10} y2={y} stroke="#EDECFA" strokeWidth="1" />

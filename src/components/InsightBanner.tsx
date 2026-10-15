@@ -1,4 +1,5 @@
 import { Sparkles } from "lucide-react";
+import { useState } from "react";
 import type { ServiceStat, AtRiskClient } from "../engine";
 
 type Props = {
@@ -22,6 +23,9 @@ export default function InsightBanner({
   aiInsight,
   aiInsightLoading,
 }: Props) {
+  // The close button hides the banner for this view
+  const [hidden, setHidden] = useState(false);
+  if (hidden) return null;
   return (
     <div className="rounded-[18px] p-5 text-white" style={{ background: 'linear-gradient(to right, #621CFF, #9B1CCC)' }}>
       <div className="flex items-start gap-3">
@@ -56,7 +60,7 @@ export default function InsightBanner({
             );
           })()}
         </div>
-        <button className="text-white/50 hover:text-white/80 transition-colors flex-shrink-0">
+        <button type="button" aria-label="Cerrar" onClick={() => setHidden(true)} className="text-white/50 hover:text-white/80 transition-colors flex-shrink-0">
           <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none">
             <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
