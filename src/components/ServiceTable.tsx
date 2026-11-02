@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ServiceStat } from "../engine";
 
 type Props = {
@@ -5,13 +6,21 @@ type Props = {
   servicesInsight: { message: string; tone: "negative" | "positive" | "neutral" } | null;
   currencySymbol: string;
   highlightedService?: string | null;
+  /** Rows shown before «Ver todos». Omitted = every service (old behaviour). */
+  limit?: number;
 };
 
-export default function ServiceTable({ services, servicesInsight, currencySymbol: curr, highlightedService }: Props) {
+export default function ServiceTable({ services, servicesInsight, currencySymbol: curr, highlightedService, limit }: Props) {
+  const [showAll, setShowAll] = useState(false);
+  const capped = limit !== undefined && services.length > limit && !showAll;
+  const rows = capped ? services.slice(0, limit) : services;
   return (
     <div id="seccion-rentabilidad" className="col-span-full lg:col-span-3 bg-white rounded-[18px] p-5 shadow-[0_5px_22px_rgba(75,70,92,0.10)]">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-bold text-[#4B465C] text-2xl" style={{ fontFamily: "var(--font-montserrat)" }}>Rendimiento por servicio</h2>
+        <h2 className="font-bold text-[#4B465C] text-lg" style={{ fontFamily: "var(--font-montserrat)" }}>Rendimiento por servicio</h2>
+        {limit !== undefined && services.length > limit && (
+          <span className="text-sm text-[#9290A4]">Top {limit} por ingresos · {services.length} en total</span>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -23,7 +32,7 @@ export default function ServiceTable({ services, servicesInsight, currencySymbol
             </tr>
           </thead>
           <tbody>
-            {services.map((s, i) => (
+            {rows.map((s, i) => (
               <tr
                 key={i}
                 className={`border-b last:border-0 hover:bg-gray-50/50 transition-all duration-300 ${
@@ -61,6 +70,15 @@ export default function ServiceTable({ services, servicesInsight, currencySymbol
           </tbody>
         </table>
       </div>
+      {limit !== undefined && services.length > limit && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="mt-3 w-full text-sm font-semibold text-[#621CFF] bg-purple-50 hover:bg-purple-100 py-2 rounded-xl transition-colors"
+        >
+          {showAll ? "Ver menos" : `Ver todos los servicios (${services.length})`}
+        </button>
+      )}
       {servicesInsight && (() => {
         const { message, tone } = servicesInsight;
         const bg = tone === "negative" ? "#FEF2F2" : tone === "positive" ? "#F5F3FF" : "#F3F4F6";

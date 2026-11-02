@@ -10,7 +10,7 @@ export default function Opportunities({ opportunities, loading, onSelectOpportun
   return (
     <div className="bg-white rounded-[18px] p-5 shadow-[0_5px_22px_rgba(75,70,92,0.10)]">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-bold text-[#4B465C] text-2xl" style={{ fontFamily: "var(--font-montserrat)" }}>Oportunidades</h2>
+        <h2 className="font-bold text-[#4B465C] text-lg" style={{ fontFamily: "var(--font-montserrat)" }}>Oportunidades</h2>
         {loading ? (
           <span className="text-xs text-[#621CFF] font-medium animate-pulse">Generando con IA…</span>
         ) : (

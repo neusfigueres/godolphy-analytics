@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { AtRiskClient } from "../engine";
 
 type Props = {
@@ -5,16 +6,18 @@ type Props = {
   currencySymbol: string;
   highlightClients?: boolean;
   onLaunchCampaign?: (client: AtRiskClient) => void;
+  /** Rendered at the bottom of the card (e.g. the panel's campaign CTA). */
+  footer?: ReactNode;
 };
 
-export default function AtRiskClients({ atRiskClients, currencySymbol: curr, highlightClients, onLaunchCampaign }: Props) {
+export default function AtRiskClients({ atRiskClients, currencySymbol: curr, highlightClients, onLaunchCampaign, footer }: Props) {
   return (
-    <div id="seccion-clientes-riesgo" className="bg-white rounded-[18px] p-5 shadow-[0_5px_22px_rgba(75,70,92,0.10)]">
+    <div id="seccion-clientes-riesgo" className="h-full flex flex-col bg-white rounded-[18px] p-5 shadow-[0_5px_22px_rgba(75,70,92,0.10)]">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-bold text-[#4B465C] text-2xl" style={{ fontFamily: "var(--font-montserrat)" }}>Clientes en riesgo</h2>
+        <h2 className="font-bold text-[#4B465C] text-lg" style={{ fontFamily: "var(--font-montserrat)" }}>Clientes en riesgo</h2>
         <span className="text-xs bg-red-50 text-red-500 font-semibold px-2 py-0.5 rounded-full">{atRiskClients.length} clientes</span>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-3 flex-1">
         {atRiskClients.slice(0, 8).map((c, i) => (
           <div
             key={i}
@@ -53,6 +56,7 @@ export default function AtRiskClients({ atRiskClients, currencySymbol: curr, hig
           </a>
         </div>
       )}
+      {footer && <div className="mt-4 pt-4 border-t border-gray-100">{footer}</div>}
     </div>
   );
 }

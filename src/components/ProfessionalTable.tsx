@@ -12,7 +12,7 @@ export default function ProfessionalTable({ professionals, currencySymbol: curr,
   return (
     <div id="seccion-profesionales" className="bg-white rounded-[18px] p-5 shadow-[0_5px_22px_rgba(75,70,92,0.10)]">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-bold text-[#4B465C] text-2xl" style={{ fontFamily: "var(--font-montserrat)" }}>Rendimiento por profesional</h2>
+        <h2 className="font-bold text-[#4B465C] text-lg" style={{ fontFamily: "var(--font-montserrat)" }}>Rendimiento por profesional</h2>
         <span className="text-sm text-[#9290A4]">{professionals.length} profesionales</span>
       </div>
       <div className="overflow-x-auto">

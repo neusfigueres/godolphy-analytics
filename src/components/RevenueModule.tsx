@@ -39,11 +39,16 @@ function RevenueChart({ data, goal, currencySymbol: curr, onGoalClick }: {
     : "";
   const goalBoxW = 90;
   const goalBoxH = 16;
-  const goalBoxX = chartLeft + totalW - goalBoxW - 2;
-  const goalBoxY = goalY - goalBoxH - 1;
+  // Goal label sits at the LEFT end of the line: the current month (last bar,
+  // right end) carries its own value label, and both overlapped when the
+  // current revenue was close to the goal. Below the line if there is no room above.
+  const goalBoxX = chartLeft + 4;
+  const goalBoxY = goalY - goalBoxH - 1 < 2 ? goalY + 2 : goalY - goalBoxH - 1;
 
   return (
-    <div style={{ overflow: "hidden", width: "100%" }}>
+    <div style={{ overflow: "hidden", width: "100%" }} className="max-w-[620px] mx-auto">
+      {/* Width capped: the SVG scales with its column, so on wide screens the
+          axis and labels grew far bigger than the rest of the dashboard. */}
       <svg viewBox="0 0 490 185" className="w-full">
         {yTicks.map((v) => {
           const y = chartBottom - (v / maxVal) * chartH;
@@ -102,7 +107,7 @@ export default function RevenueModule({ revenueData, revenueGoal, changePercent,
     <div id="seccion-ingresos" className="col-span-full lg:col-span-3 bg-white rounded-[18px] p-5 shadow-[0_5px_22px_rgba(75,70,92,0.10)]">
       <div className="flex flex-wrap items-center justify-between mb-5 gap-2">
         <div>
-          <h2 className="font-bold text-[#4B465C] text-2xl" style={{ fontFamily: "var(--font-montserrat)" }}>Ingresos mensuales</h2>
+          <h2 className="font-bold text-[#4B465C] text-lg" style={{ fontFamily: "var(--font-montserrat)" }}>Ingresos mensuales</h2>
           <p className="text-sm text-[#9290A4] mt-0.5">
             Últimos 6 meses{revenueGoal !== null ? " · con objetivo" : ""}
             {revenueGoal !== null && (

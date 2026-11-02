@@ -32,7 +32,7 @@ function ClientChart({ data }: { data: MonthPoint[] }) {
   ].join(" ");
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[620px] mx-auto block">
       <defs>
         <linearGradient id="clientGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#621CFF" stopOpacity="0.15" />
@@ -82,7 +82,7 @@ export default function NewClientsModule({ clientData }: Props) {
     <div className="col-span-full lg:col-span-2 bg-white rounded-[18px] p-5 shadow-[0_5px_22px_rgba(75,70,92,0.10)]">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="font-bold text-[#4B465C] text-2xl" style={{ fontFamily: "var(--font-montserrat)" }}>Nuevos clientes</h2>
+          <h2 className="font-bold text-[#4B465C] text-lg" style={{ fontFamily: "var(--font-montserrat)" }}>Nuevos clientes</h2>
           <p className="text-sm text-[#9290A4] mt-0.5">Captación mensual</p>
         </div>
         {(() => {
