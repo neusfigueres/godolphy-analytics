@@ -118,6 +118,8 @@ export type DashData = {
   services: ServiceStat[];
   servicesInsight: { message: string; tone: "negative" | "positive" | "neutral" } | null;
   atRiskClients: AtRiskClient[];
+  /** All clients at risk (atRiskClients only keeps the first 12). */
+  atRiskTotal: number;
   topClients: TopClient[];
   monthlyRevenue: MonthPoint[];
   revenueGoal: { value: number; source: "auto-best-historical" | "auto-single-month" } | null;
@@ -361,7 +363,7 @@ function computeOpportunities(
       desc: `${eligible01} clientes son candidatos a un bono mensual`,
       potential: `${curr}${Math.round(impact).toLocaleString("es-ES")}/mes`,
       impact: Math.round(impact), color: "#631CFF", bg: "#F5F3FF",
-      whyText: `${eligible01} clientes han venido 4 o más veces en los últimos 3 meses. Son tus más fieles y las más fáciles de convertir a un bono mensual de ingresos recurrentes.`,
+      whyText: `${eligible01} clientes han venido 4 o más veces en los últimos 3 meses. Son tu clientela más fiel y la más fácil de convertir a un bono mensual de ingresos recurrentes.`,
       actionText: "Crea un bono mensual para tus clientes más frecuentes. Garantiza ingresos recurrentes y premia su fidelidad con un precio preferencial.",
       actionButton: "Crear bono",
     });
@@ -416,7 +418,7 @@ function computeOpportunities(
         desc: `${n} clientes vinieron hace 3–6 semanas y están en el momento de volver`,
         potential: `${curr}${impact.toLocaleString("es-ES")} potencial`,
         impact, color: "#0EA5E9", bg: "#F0F9FF",
-        whyText: `${n} clientes vinieron hace entre 3 y 6 semanas. Es la ventana natural de necesitar el servicio de nuevo — el momento ideal para un recordatorio a las que todavía no hayan reservado.`,
+        whyText: `${n} clientes vinieron hace entre 3 y 6 semanas. Es la ventana natural de necesitar el servicio de nuevo — el momento ideal para un recordatorio a quienes todavía no hayan reservado.`,
         actionText: "Envía un recordatorio a estos clientes para que reserven su próxima cita. Un mensaje tipo '¿Cuándo vienes a renovar?' con un enlace de reserva convierte muy bien en esta ventana.",
         actionButton: "Enviar recordatorio",
       });
@@ -448,7 +450,7 @@ function computeOpportunities(
       const impact = Math.round(n * 5 * 0.3 * 4);
       ops.push({
         id: "OP-06", title: "Extras dentro del servicio",
-        desc: `${n} clientes recurrentes a las que proponer un extra en su próxima cita`,
+        desc: `${n} clientes recurrentes a quienes proponer un extra en su próxima cita`,
         potential: `+${curr}${impact.toLocaleString("es-ES")}/mes estimado`,
         impact, color: "#10B981", bg: "#ECFDF5",
         whyText: `Tienes ${n} clientes que repiten. Los extras son ingresos de muy bajo esfuerzo: solo hay que proponerlos en el momento adecuado.`,
@@ -1072,7 +1074,7 @@ export function processData(
   const realNow = new Date();
   const lastDay = new Date(latest.getFullYear(), latest.getMonth(), latest.getDate(), 23, 59, 59);
   const now = lastDay < realNow ? lastDay : realNow;
-  const atRiskClients: AtRiskClient[] = [...clientInfo.entries()]
+  const atRiskAll: AtRiskClient[] = [...clientInfo.entries()]
     .map(([key, d]) => {
       const rawName = nameByKey.get(key) ?? "";
       const name = rawName.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
@@ -1090,8 +1092,9 @@ export function processData(
       };
     })
     .filter((c) => c.days >= 45)
-    .sort((a, b) => b.days - a.days)
-    .slice(0, 12);
+    .sort((a, b) => b.days - a.days);
+  const atRiskTotal = atRiskAll.length;
+  const atRiskClients = atRiskAll.slice(0, 12);
 
   // ── Cancellations this week ───────────────────────────────────────────────
   const weekAgo = new Date(now.getTime() - 7 * 86400000);
@@ -1244,6 +1247,7 @@ export function processData(
     services,
     servicesInsight,
     atRiskClients,
+    atRiskTotal,
     topClients,
     monthlyRevenue,
     revenueGoal,
@@ -1280,6 +1284,8 @@ export function computeAlerts(
   svcList: ServiceStat[],
   riskList: AtRiskClient[],
   currencySymbol = "€",
+  /** Total clients at risk when riskList is only the first ones. */
+  riskTotal?: number,
 ): AlertItem[] {
   const curr = currencySymbol;
   const list: AlertItem[] = [];
@@ -1289,7 +1295,7 @@ export function computeAlerts(
     const riskImpact = riskList.filter((c) => c.risk === "alto").length * m.precioMedio * 2;
     list.push({
       type: "danger",
-      title: `${riskList.length} clientes sin visita en 45+ días`,
+      title: `${riskTotal ?? riskList.length} clientes sin visita en 45+ días`,
       desc: "Riesgo de abandono. Recomienda una acción de reactivación esta semana.",
       action: "Ver clientes",
       scrollTo: "seccion-clientes-riesgo",

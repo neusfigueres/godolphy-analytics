@@ -8,14 +8,16 @@ type Props = {
   onLaunchCampaign?: (client: AtRiskClient) => void;
   /** Rendered at the bottom of the card (e.g. the panel's campaign CTA). */
   footer?: ReactNode;
+  /** Total clients at risk when the list only shows the first ones (e.g. the panel's count). */
+  total?: number;
 };
 
-export default function AtRiskClients({ atRiskClients, currencySymbol: curr, highlightClients, onLaunchCampaign, footer }: Props) {
+export default function AtRiskClients({ atRiskClients, currencySymbol: curr, highlightClients, onLaunchCampaign, footer, total }: Props) {
   return (
     <div id="seccion-clientes-riesgo" className="h-full flex flex-col bg-white rounded-[18px] p-5 shadow-[0_5px_22px_rgba(75,70,92,0.10)]">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-bold text-[#4B465C] text-lg" style={{ fontFamily: "var(--font-montserrat)" }}>Clientes en riesgo</h2>
-        <span className="text-xs bg-red-50 text-red-500 font-semibold px-2 py-0.5 rounded-full">{atRiskClients.length} clientes</span>
+        <span className="text-xs bg-red-50 text-red-500 font-semibold px-2 py-0.5 rounded-full">{total ?? atRiskClients.length} clientes</span>
       </div>
       <div className="space-y-3 flex-1">
         {atRiskClients.slice(0, 8).map((c, i) => (
@@ -52,7 +54,7 @@ export default function AtRiskClients({ atRiskClients, currencySymbol: curr, hig
             <svg viewBox="0 0 20 20" className="w-4 h-4" fill="currentColor">
               <path d="M10 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L10 14.4l-4.8 2.5.9-5.4L2.2 7.7l5.4-.8L10 2z" />
             </svg>
-            Lanzar campaña para todas
+            Lanzar campaña para todos
           </a>
         </div>
       )}
