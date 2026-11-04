@@ -7,6 +7,8 @@ type Props = {
   changePercent: number | null;
   topService: ServiceStat | undefined;
   atRiskClients: AtRiskClient[];
+  /** Total clients at risk when atRiskClients only holds the first ones. */
+  atRiskTotal?: number;
   precioMedio: number;
   currencySymbol: string;
   aiInsight?: string | null;
@@ -18,6 +20,7 @@ export default function InsightBanner({
   changePercent,
   topService,
   atRiskClients,
+  atRiskTotal,
   precioMedio,
   currencySymbol: curr,
   aiInsight,
@@ -55,7 +58,7 @@ export default function InsightBanner({
               <p className="text-white font-medium leading-relaxed text-sm">
                 Este mes has generado <span className="font-bold">{facturacion.toLocaleString("es-ES")} {curr}</span>{changeText}.
                 {topService && <> Tu servicio estrella es el <span className="font-bold">{topService.name}</span> con {topService.sessions} sesiones.</>}
-                {atRiskClients.length > 0 && <> Tienes <span className="font-bold text-red-300">{atRiskClients.length} clientes en riesgo de abandono</span> que no han vuelto en 45+ días — una campaña de reactivación podría recuperar hasta {riskPotential.toLocaleString("es-ES")} {curr}.</>}
+                {atRiskClients.length > 0 && <> Tienes <span className="font-bold text-red-300">{atRiskTotal ?? atRiskClients.length} clientes en riesgo de abandono</span> que no han vuelto en 45+ días — una campaña de reactivación podría recuperar hasta {riskPotential.toLocaleString("es-ES")} {curr}.</>}
               </p>
             );
           })()}

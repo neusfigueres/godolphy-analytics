@@ -61,7 +61,7 @@ export default function KpiCard({
                     }
                   </svg>
                   <span className={changeClass} style={{ color: b >= 0 ? "#04B215" : "#FF4F4F" }}>
-                    {b >= 0 ? "Beneficio positivo" : "Pérdidas este mes"}
+                    {b >= 0 ? "Beneficio positivo" : "Pérdidas"}
                   </span>
                 </div>
                 <div className={`font-bold leading-none mb-1 ${valueClass}`} style={{ color: b >= 0 ? "#1E1B39" : "#EF4444" }}>
